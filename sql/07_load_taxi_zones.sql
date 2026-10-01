@@ -16,8 +16,9 @@ CREATE OR REPLACE TABLE NYC_TAXI_DB.RAW.TAXI_ZONES (
     service_zone VARCHAR
 );
 
+-- Chargement du référentiel depuis le stage externe S3
 COPY INTO NYC_TAXI_DB.RAW.TAXI_ZONES
-FROM @NYC_TAXI_DB.RAW.NYC_TAXI_STAGE/taxi_zone_lookup.csv
+FROM @NYC_TAXI_DB.RAW.NYC_TAXI_EXT_STAGE/reference/taxi_zone_lookup.csv
 FILE_FORMAT = (
     FORMAT_NAME = 'NYC_TAXI_DB.RAW.NYC_TAXI_CSV_FORMAT'
 )
