@@ -1,0 +1,18 @@
+USE WAREHOUSE NYC_TAXI_WH;
+USE DATABASE NYC_TAXI_DB;
+USE SCHEMA RAW;
+
+-- Chargement des 12 mois de l'année 2025 depuis le stage Snowflake
+COPY INTO NYC_TAXI_DB.RAW.YELLOW_TRIPS
+FROM @NYC_TAXI_DB.RAW.NYC_TAXI_STAGE
+PATTERN = '.*yellow_tripdata_2025-(0[1-9]|1[0-2])[.]parquet'
+FILE_FORMAT = (
+    FORMAT_NAME = 'NYC_TAXI_DB.RAW.NYC_TAXI_PARQUET_FORMAT'
+)
+MATCH_BY_COLUMN_NAME = CASE_INSENSITIVE;
+
+-- Contrôle du volume analytique 2025
+SELECT COUNT(*) AS raw_2025_rows
+FROM NYC_TAXI_DB.RAW.YELLOW_TRIPS
+WHERE TO_TIMESTAMP_NTZ(tpep_pickup_datetime, 6) >= '2025-01-01'
+  AND TO_TIMESTAMP_NTZ(tpep_pickup_datetime, 6) < '2026-01-01';
