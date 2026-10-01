@@ -1,54 +1,53 @@
-# Brief NYC Yellow Taxi — Snowflake / dbt
+# NYC Yellow Taxi — Snowflake / dbt
 
-Projet Data Engineering réalisé à partir des données **NYC Yellow Taxi**.
+Projet Data Engineering réalisé à partir des données **NYC Yellow Taxi** sur l'année **2025**.
 
-L’objectif est de construire une chaîne complète d’ingestion, nettoyage, transformation, contrôle qualité et restitution avec **Snowflake**, **dbt Core**, **GitHub Actions** et **Streamlit**.
+L'objectif est de construire une chaîne complète d'ingestion, nettoyage, transformation, contrôle qualité et restitution avec **Amazon S3, Snowflake, dbt Core, GitHub Actions et Streamlit**.
 
 ---
 
 ## Architecture
 
 ```text
-Fichiers Parquet NYC Taxi
-        +
-taxi_zone_lookup.csv
-        |
-        v
-Snowflake Stage
-        |
-        v
-RAW
-YELLOW_TRIPS
-TAXI_ZONES
-        |
-        v
-STAGING
-Nettoyage + enrichissements
-        |
-        v
-FINAL
-DAILY_KPIS
-ZONE_KPIS
-HOURLY_PATTERNS
-        |
-        +----------+
-        |          |
-       dbt     Streamlit
-        |
- GitHub Actions
+Fichiers Parquet NYC Taxi + taxi_zone_lookup.csv
+                    |
+                    v
+            Amazon S3 privé
+                    |
+                    v
+           IAM Role / Storage Integration
+                    |
+                    v
+          Snowflake External Stage
+                    |
+                    v
+        RAW -> STAGING -> FINAL
+                    |
+             +------+------+
+             |             |
+            dbt        Streamlit
+             |
+      GitHub Actions
 ```
 
-La période analytique retenue est **l'année 2025 complète**.
+### Couches Snowflake
+
+- **RAW** : données sources chargées sans transformation métier.
+- **STAGING** : nettoyage, filtrage, typage et enrichissements.
+- **FINAL** : tables analytiques agrégées pour les usages métier et le dashboard.
 
 ---
 
-## Volumes et qualité des données
+## Données et qualité
 
-Données RAW 2025 :
+Période analysée : **2025 complète**.
 
-```text
-48 722 579 lignes
-```
+| Indicateur | Valeur |
+|---|---:|
+| Lignes RAW | 48 722 579 |
+| Lignes rejetées | 4 541 544 |
+| Lignes valides | 44 181 035 |
+| Taux de rejet | 9,32 % |
 
 Principales règles de rejet :
 
@@ -60,20 +59,7 @@ trip_distance > 1000
 dropoff_datetime <= pickup_datetime
 ```
 
-Résultat :
-
-| Indicateur | Valeur |
-|---|---:|
-| Lignes RAW 2025 | 48 722 579 |
-| Lignes rejetées | 4 541 544 |
-| Lignes valides | 44 181 035 |
-| Taux de rejet | 9,32 % |
-
-Les valeurs manquantes sont analysées et documentées mais ne provoquent pas systématiquement le rejet d'une course.
-
----
-
-## Enrichissements
+Les valeurs manquantes sont **mesurées et documentées**, mais ne provoquent pas automatiquement le rejet d'une course.
 
 La couche STAGING ajoute notamment :
 
@@ -84,7 +70,11 @@ La couche STAGING ajoute notamment :
 - période de la journée ;
 - distinction `WEEKDAY / WEEKEND`.
 
-La couche FINAL contient les agrégations nécessaires à l'analyse :
+---
+
+## Tables analytiques
+
+Le schéma `FINAL` contient notamment :
 
 ```text
 DAILY_KPIS         365 lignes
@@ -92,54 +82,42 @@ ZONE_KPIS          262 lignes
 HOURLY_PATTERNS     48 lignes
 ```
 
-L'objectif est d'éviter de rescanner les 44 millions de trajets pour chaque visualisation.
+Ces agrégations permettent d'éviter de rescanner les 44 millions de trajets pour chaque visualisation.
 
 ---
 
 ## dbt Core
 
-Le projet dbt est disponible dans :
+Le projet dbt se trouve dans :
 
 ```text
 nyc_taxi/
 ```
 
-Organisation :
+Structure principale :
 
 ```text
 models/
 ├── staging/
-│   └── stg_yellow_trips.sql
 ├── intermediate/
-│   └── int_kpi_aggregates.sql
 └── marts/
-    ├── mart_daily_kpis.sql
-    ├── mart_hourly_patterns.sql
-    └── mart_zone_kpis.sql
 ```
 
-Résultats :
+Résultats obtenus :
 
 ```text
-dbt run
-PASS=5
-ERROR=0
+dbt run   : 5 modèles exécutés avec succès
+dbt test  : 11 tests réussis
 ```
 
-```text
-dbt test
-PASS=11
-ERROR=0
-```
-
-Les tests contrôlent notamment :
+Les tests vérifient notamment :
 
 - les valeurs nulles ;
 - l'unicité ;
 - les valeurs autorisées ;
 - les volumes attendus des marts.
 
-La documentation dbt est générée avec :
+Documentation dbt :
 
 ```bash
 dbt docs generate
@@ -160,58 +138,85 @@ Il :
 
 1. installe Python et dbt ;
 2. se connecte à Snowflake via GitHub Secrets ;
-3. vérifie la connexion ;
+3. exécute `dbt debug` ;
 4. exécute `dbt build`.
 
-Le workflow a été testé avec succès.
+Le workflow utilise un rôle Snowflake dédié :
+
+```text
+DBT_CI_ROLE
+```
+
+afin d'appliquer le principe du moindre privilège.
+
+Le workflow peut être lancé manuellement et est également planifié mensuellement.
 
 ---
 
 ## Dashboard Streamlit
 
-Un dashboard **Streamlit in Snowflake** permet de visualiser les principales métriques :
+Le code du dashboard est versionné dans :
 
-- 44 181 035 trajets valides ;
-- environ 1,28 milliard de dollars de chiffre d'affaires ;
-- revenu moyen par trajet ;
-- distance et durée moyennes ;
-- taux de pourboire ;
-- évolution quotidienne ;
-- top des zones de prise en charge ;
-- heure de pointe ;
-- comparaison semaine / week-end ;
-- taux de rejet des données.
-
-Le dashboard interroge principalement les tables agrégées de la couche FINAL afin de limiter le coût et le temps de calcul.
-
----
-
-## Principaux choix techniques
-
-- Warehouse Snowflake `XSMALL`
-- `AUTO_SUSPEND = 60`
-- période analytique limitée à 2025
-- agrégations matérialisées dans FINAL
-- vues dbt pour limiter les recalculs
-- `threads = 1` dans dbt
-- secrets Snowflake non versionnés dans Git
-
----
-
-## Exécution dbt
-
-```powershell
-cd nyc_taxi
-
-dbt debug
-dbt run
-dbt test
+```text
+dashboard/
+├── streamlit_app.py
+└── pyproject.toml
 ```
 
-ou :
+Le dashboard affiche notamment :
 
-```powershell
+- le nombre de trajets valides ;
+- le chiffre d'affaires ;
+- le revenu moyen par trajet ;
+- la distance et la durée moyennes ;
+- le taux de pourboire ;
+- l'évolution quotidienne ;
+- les zones les plus actives ;
+- l'heure de pointe ;
+- la comparaison semaine / week-end ;
+- les indicateurs de qualité des données.
+
+---
+
+## Exécution du projet
+
+### 1. Préparer l'infrastructure Snowflake
+
+Exécuter les scripts SQL dans l'ordre :
+
+```text
+sql/01_setup_snowflake.sql
+sql/02_create_raw_tables.sql
+sql/03_load_raw.sql
+sql/04_profile_quality.sql
+sql/05_create_staging.sql
+sql/06_create_final.sql
+sql/07_load_taxi_zones.sql
+sql/08_enrich_final.sql
+```
+
+Le fichier `01_setup_snowflake.sql` contient des placeholders :
+
+```text
+<AWS_ROLE_ARN>
+<BUCKET_NAME>
+```
+
+à remplacer par les valeurs de l'environnement.
+
+### 2. Exécuter dbt
+
+```bash
+cd nyc_taxi
+dbt debug
 dbt build
+```
+
+### 3. Générer la documentation dbt
+
+```bash
+dbt docs generate
+dbt docs serve
 ```
 
 ---
@@ -223,8 +228,12 @@ sl-2026-snowflake/
 ├── .github/
 │   └── workflows/
 │       └── dbt.yml
+├── dashboard/
 ├── data/
+├── docs/
+│   └── analyse_reflexive.md
 ├── nyc_taxi/
+├── sql/
 ├── carto_data.ipynb
 ├── .gitignore
 └── readme.md
@@ -234,18 +243,20 @@ Les fichiers Parquet volumineux ne sont pas versionnés dans Git.
 
 ---
 
+## Principaux choix techniques
+
+- stockage objet dans **Amazon S3** ;
+- accès S3 via **IAM Role + Snowflake Storage Integration** ;
+- **External Stage** Snowflake ;
+- warehouse `XSMALL` avec `AUTO_SUSPEND = 60` ;
+- architecture `RAW / STAGING / FINAL` ;
+- tables FINAL agrégées pour limiter les coûts ;
+- modèles dbt matérialisés en vues ;
+- secrets non versionnés dans Git ;
+- rôle `DBT_CI_ROLE` dédié à la CI.
+
+---
+
 ## Résultat
 
-Le projet permet de passer de :
-
-```text
-48,7 millions de lignes RAW
-```
-
-à :
-
-```text
-44,18 millions de trajets nettoyés
-```
-
-puis à des tables analytiques légères, testées et directement exploitables par le dashboard.
+Le projet permet de passer de **48,7 millions de lignes brutes** à **44,18 millions de trajets nettoyés**, puis à des tables analytiques légères, testées et directement exploitables dans Streamlit.
