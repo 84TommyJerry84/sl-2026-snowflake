@@ -1,0 +1,51 @@
+version: 2
+
+models:
+
+- name: stg_yellow_trips
+  description: "Vue dbt sur les trajets nettoyés et enrichis de Snowflake STAGING."
+
+- name: int_kpi_aggregates
+  description: "Couche intermédiaire contenant les agrégations métier."
+  columns:
+  - name: aggregation_level
+    description: "Niveau d'agrégation : DAILY, ZONE ou HOURLY."
+    data_tests:
+    - not_null
+    - accepted_values:
+        arguments:
+          values: [ 'DAILY', 'ZONE', 'HOURLY' ]
+
+- name: mart_daily_kpis
+  description: "KPIs quotidiens pour l'année 2025."
+  columns:
+  - name: trip_date
+    data_tests:
+    - not_null
+    - unique
+
+  - name: trip_count
+    data_tests:
+    - not_null
+
+- name: mart_hourly_patterns
+  description: "Analyse des trajets par heure et type de jour."
+  columns:
+  - name: pickup_hour
+    data_tests:
+    - not_null
+
+  - name: day_type
+    data_tests:
+    - not_null
+    - accepted_values:
+        arguments:
+          values: [ 'WEEKDAY', 'WEEKEND' ]
+
+- name: mart_zone_kpis
+  description: "KPIs par zone de prise en charge."
+  columns:
+  - name: pickup_location_id
+    data_tests:
+    - not_null
+    - unique

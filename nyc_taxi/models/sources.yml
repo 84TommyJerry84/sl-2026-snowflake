@@ -1,0 +1,16 @@
+version: 2
+
+sources:
+- name: snowflake_staging
+  database: NYC_TAXI_DB
+  schema: STAGING
+  tables:
+  - name: yellow_trips
+    identifier: YELLOW_TRIPS
+
+- name: snowflake_final
+  database: NYC_TAXI_DB
+  schema: FINAL
+  tables:
+  - name: kpi_aggregates
+    identifier: KPI_AGGREGATES

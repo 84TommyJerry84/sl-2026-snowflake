@@ -1,0 +1,57 @@
+name: dbt Snowflake
+
+on:
+  workflow_dispatch:
+
+  schedule:
+    - cron: "0 6 1 * *"
+
+jobs:
+  dbt:
+    runs-on: ubuntu-latest
+
+    defaults:
+      run:
+        working-directory: nyc_taxi
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Install dbt Snowflake
+        run: pip install dbt-snowflake==1.12.1
+
+      - name: Create dbt profile
+        env:
+          SNOWFLAKE_ACCOUNT: ${{ secrets.SNOWFLAKE_ACCOUNT }}
+          SNOWFLAKE_USER: ${{ secrets.SNOWFLAKE_USER }}
+          SNOWFLAKE_PASSWORD: ${{ secrets.SNOWFLAKE_PASSWORD }}
+        run: |
+          mkdir -p ~/.dbt
+
+          cat > ~/.dbt/profiles.yml <<EOF
+          nyc_taxi:
+            target: dev
+            outputs:
+              dev:
+                type: snowflake
+                account: ${SNOWFLAKE_ACCOUNT}
+                user: ${SNOWFLAKE_USER}
+                password: ${SNOWFLAKE_PASSWORD}
+                role: ACCOUNTADMIN
+                database: NYC_TAXI_DB
+                warehouse: NYC_TAXI_WH
+                schema: DBT_DEV
+                threads: 1
+          EOF
+
+      - name: Test connection
+        run: dbt debug
+
+      - name: Run models and tests
+        run: dbt build
