@@ -2,9 +2,9 @@ USE WAREHOUSE NYC_TAXI_WH;
 USE DATABASE NYC_TAXI_DB;
 USE SCHEMA RAW;
 
--- Chargement des 12 mois de l'année 2025 depuis le stage Snowflake
+-- Chargement des 12 mois de 2025 depuis le stage externe S3
 COPY INTO NYC_TAXI_DB.RAW.YELLOW_TRIPS
-FROM @NYC_TAXI_DB.RAW.NYC_TAXI_STAGE
+FROM @NYC_TAXI_DB.RAW.NYC_TAXI_EXT_STAGE/yellow/2025/
 PATTERN = '.*yellow_tripdata_2025-(0[1-9]|1[0-2])[.]parquet'
 FILE_FORMAT = (
     FORMAT_NAME = 'NYC_TAXI_DB.RAW.NYC_TAXI_PARQUET_FORMAT'
