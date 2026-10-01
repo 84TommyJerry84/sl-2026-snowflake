@@ -2,11 +2,11 @@ USE WAREHOUSE NYC_TAXI_WH;
 USE DATABASE NYC_TAXI_DB;
 USE SCHEMA RAW;
 
--- Vérification du schéma détecté sur un fichier Parquet
+-- Vérification du schéma détecté sur un fichier Parquet 2025
 SELECT *
 FROM TABLE(
     INFER_SCHEMA(
-        LOCATION => '@NYC_TAXI_DB.RAW.NYC_TAXI_STAGE/yellow_tripdata_2026-01.parquet',
+        LOCATION => '@NYC_TAXI_DB.RAW.NYC_TAXI_EXT_STAGE/yellow/2025/yellow_tripdata_2025-01.parquet',
         FILE_FORMAT => 'NYC_TAXI_DB.RAW.NYC_TAXI_PARQUET_FORMAT'
     )
 );
@@ -18,7 +18,7 @@ USING TEMPLATE (
         WITHIN GROUP (ORDER BY ORDER_ID)
     FROM TABLE(
         INFER_SCHEMA(
-            LOCATION => '@NYC_TAXI_DB.RAW.NYC_TAXI_STAGE/yellow_tripdata_2026-01.parquet',
+            LOCATION => '@NYC_TAXI_DB.RAW.NYC_TAXI_EXT_STAGE/yellow/2025/yellow_tripdata_2025-01.parquet',
             FILE_FORMAT => 'NYC_TAXI_DB.RAW.NYC_TAXI_PARQUET_FORMAT'
         )
     )
